@@ -8,8 +8,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+/* storage class for user record */
 public class UserRecord {
-	
+	/* inner class presenting a pair of date and location */
 	class DLPair {
 		Date date;
 		double latitude;
@@ -30,16 +31,17 @@ public class UserRecord {
 		}
 	}
 	
-	int userid;
-	ArrayList<DLPair> DLPairs;
-	ArrayList<String> otherInfos;
+	int userid; // user id is per user record
+	ArrayList<DLPair> DLPairs; // user record can have multiple pairs of date and location
+	ArrayList<String> otherInfos; // user record can have multiple other information
 	
 	public UserRecord(int id) {
 		DLPairs = new ArrayList<DLPair>();
 		otherInfos = new ArrayList<String>();
 		userid = id;
 	}
-	
+	/* linePart is separated by | , each representing a pair of date and location, or other information. 
+	 * if parsing successfully, it will be inserted into DLPairs, else insert into otherInfos */
 	public void addPair(String linePart) {
 		String timeAndLoc[] = linePart.split("]");
 		String pattern = "yyyy-MM-dd KK:mm:ss";

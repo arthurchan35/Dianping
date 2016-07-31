@@ -11,17 +11,22 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+/*
+ * Parser class takes file name as argument and parse the content data
+ * into UserRecord object, and insert userRecord into oracle database.
+ * 
+ * */
 public class Parser {
-
+	/* the input stream for data file */
 	private FileInputStream in;
-
+	/* sqlconnector takes care of connecting to oracle database */
 	private SQLConnector connector;
-	
+	/* parser constructor, initializing class members */
 	public Parser(String fileDir) throws FileNotFoundException {
 		in = new FileInputStream(fileDir);	
 		connector = SQLConnector.getInstance();
 	}
-		
+	/* takes one line from data file and parse the string into userRecord */	
 	private UserRecord parserUser(String line) {
 		if (line.equals("")) return null;
 		String parts[] = line.split("\\|");
@@ -37,7 +42,7 @@ public class Parser {
 			ur.addPair(parts[i]);
 		return ur;
 	}
-	
+	/* takes userRecord object and insert into database */
 	private void insertToSQL(UserRecord ur) throws SQLException {
 		if (ur == null) return;
 		Connection con = connector.getConnection();
@@ -46,35 +51,41 @@ public class Parser {
 		
 		String urs = "insert into lnd values(?, ?, ?, ?) "; 
 		String uos = "insert into other values(?, ?)";		
-		
-		con.setAutoCommit(false);
-		updateUR = con.prepareStatement(urs);
-		updateUO = con.prepareStatement(uos);
-		
-		for (int i = 0; i < ur.getDLPairsSize(); ++i) {
-			UserRecord.DLPair dlp = ur.getDLPair(i);
-			java.util.Date utilDate = dlp.getDate();
-			java.sql.Date sqlDate = new java.sql.Date(utilDate.getTime());
-			//java.sql.Time sqlTime = new java.sql.Time(utilDate.getTime() - sqlDate.getTime());
-		    //System.out.println("utilDate:" + utilDate);
-		    //System.out.println("sqlDate:" + sqlDate);
-			updateUR.setInt(1, ur.getUserID());
-			updateUR.setDate(2, sqlDate);
-			updateUR.setDouble(3, dlp.getLatitude());
-			updateUR.setDouble(4, dlp.getLongitude());
-			updateUR.executeUpdate();
-			con.commit();
-		}
-		
-		for (int i = 0; i < ur.getOtherInfosSize(); ++i) {
-			String otherinfo = ur.getOtherInfo(i);
-			updateUO.setInt(1, ur.getUserID());
-			updateUO.setString(2, otherinfo);
-			updateUO.executeUpdate();
-			con.commit();
+		try {
+			con.setAutoCommit(false);
+			updateUR = con.prepareStatement(urs);			
+			updateUO = con.prepareStatement(uos);
+			for (int i = 0; i < ur.getDLPairsSize(); ++i) {
+
+				UserRecord.DLPair dlp = ur.getDLPair(i);
+				java.util.Date utilDate = dlp.getDate();
+				java.sql.Timestamp ts = new java.sql.Timestamp(utilDate.getTime());
+				updateUR.setInt(1, ur.getUserID());
+				updateUR.setTimestamp(2, ts);
+				updateUR.setDouble(3, dlp.getLatitude());
+				updateUR.setDouble(4, dlp.getLongitude());
+				updateUR.executeUpdate();
+				con.commit();
+			}
+			
+			for (int i = 0; i < ur.getOtherInfosSize(); ++i) {
+
+				String otherinfo = ur.getOtherInfo(i);
+				if (otherinfo == null || otherinfo.equals(""))  continue;
+				updateUO.setInt(1, ur.getUserID());
+				updateUO.setString(2, otherinfo);
+				updateUO.executeUpdate();
+				con.commit();
+			}
+		} catch (SQLException sqle) {
+			sqle.printStackTrace();
+		} finally {
+			if (updateUR != null) updateUR.close();
+			if (updateUO != null) updateUO.close();
+			con.setAutoCommit(true);
 		}
 	}
-	
+	/* public API of this program, which starts the parsing process */
 	public void start() {
 		Scanner scanner = new Scanner(in);
 		while (scanner.hasNextLine()) {
